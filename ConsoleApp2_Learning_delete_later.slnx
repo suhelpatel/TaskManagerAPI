@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="ConsoleApp2_Learning_delete_later/ConsoleApp2_Learning_delete_later.csproj" />
+  <Project Path="TaskManagerAPI/TaskManagerAPI.csproj" />
+</Solution>
