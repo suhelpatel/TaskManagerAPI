@@ -99,6 +99,7 @@ builder.Services.AddSwaggerGen(options =>
 // Meaning:
 // Whenever ITaskService is needed → give TaskService
 builder.Services.AddScoped<ITaskService, TaskService>();
+builder.Services.AddScoped<IUserRepository, UserRepository>();
 
 // 👉 Scoped = new instance per request
 // (Best for web APIs)
@@ -123,7 +124,7 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 // =========================
 
 // Read secret key from config
-var key = Encoding.ASCII.GetBytes(builder.Configuration["Jwt:Key"]);
+var key = Encoding.ASCII.GetBytes(builder.Configuration["Jwt:Key"] ?? string.Empty);
 
 // Add Authentication service
 builder.Services.AddAuthentication(options =>

@@ -18,7 +18,7 @@ namespace TaskManagerAPI.Controllers
             _taskService = taskService;
         }
 
-
+        [Authorize(Roles = "Admin,User")]
         [HttpGet]
         public IActionResult Get()
         {
@@ -27,7 +27,8 @@ namespace TaskManagerAPI.Controllers
 
         }
 
-        [HttpPost]
+        [Authorize(Roles ="Admin")]
+        [HttpPost("create-task")]
         public IActionResult Post(TaskItem task)
         {
             _taskService.Add(task);
