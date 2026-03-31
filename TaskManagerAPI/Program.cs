@@ -13,12 +13,13 @@ using Microsoft.IdentityModel.Tokens;
 
 // Swagger / OpenAPI models
 using Microsoft.OpenApi.Models;
-
+using Serilog;
 using System.Text;
 
 // Your project-specific namespaces
 using TaskManagerAPI.Data;
 using TaskManagerAPI.Interfaces;
+using TaskManagerAPI.Middleware;
 using TaskManagerAPI.Services;
 
 
@@ -154,6 +155,14 @@ builder.Services.AddAuthentication(options =>
 });
 
 
+// Add Error Log
+Log.Logger = new LoggerConfiguration()
+    .WriteTo.Console()
+    .WriteTo.File("logs/log.txt", rollingInterval: RollingInterval.Day)
+    .CreateLogger();
+
+builder.Host.UseSerilog();
+
 // =========================
 // BUILD APP
 // =========================
@@ -166,6 +175,7 @@ var app = builder.Build();
 // =========================
 // MIDDLEWARE PIPELINE
 // =========================
+app.UseMiddleware<ExceptionMiddleware>();
 
 // Only enable Swagger in Development
 if (app.Environment.IsDevelopment())
