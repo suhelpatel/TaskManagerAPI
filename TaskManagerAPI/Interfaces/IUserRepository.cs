@@ -8,5 +8,6 @@ namespace TaskManagerAPI.Interfaces
         void AddUser(User user);
         void UpdateUser(User user);
         User GetUserByRefreshToken(string refreshToken);
+        Task<List<User>> GetAllUsersAsync();
     }
 }

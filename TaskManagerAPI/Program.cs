@@ -3,6 +3,8 @@
 // =========================
 
 // Handles JWT authentication middleware
+using AspNetCoreRateLimit;
+using Hangfire;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 
 // Entity Framework Core (database operations)
@@ -33,6 +35,24 @@ var builder = WebApplication.CreateBuilder(args);
 // - Reads configuration (appsettings.json)
 // - Registers services (Dependency Injection)
 // - Prepares middleware pipeline
+
+
+// ✅ Required for rate limiting
+builder.Services.AddOptions();
+builder.Services.AddMemoryCache();
+
+// ✅ Bind config
+builder.Services.Configure<IpRateLimitOptions>(
+    builder.Configuration.GetSection("IpRateLimiting"));
+
+builder.Services.Configure<IpRateLimitPolicies>(
+    builder.Configuration.GetSection("IpRateLimitPolicies"));
+
+// ✅ REQUIRED SERVICES (THIS FIXES YOUR ERROR)
+builder.Services.AddSingleton<IRateLimitCounterStore, MemoryCacheRateLimitCounterStore>();
+builder.Services.AddSingleton<IIpPolicyStore, MemoryCacheIpPolicyStore>();
+builder.Services.AddSingleton<IProcessingStrategy, AsyncKeyLockProcessingStrategy>();
+builder.Services.AddSingleton<IRateLimitConfiguration, RateLimitConfiguration>();
 
 
 // =========================
@@ -92,6 +112,14 @@ builder.Services.AddSwaggerGen(options =>
 });
 
 
+builder.Services.AddMemoryCache();
+
+// ✅ Hangfire
+builder.Services.AddHangfire(config =>
+    config.UseSqlServerStorage(builder.Configuration.GetConnectionString("DefaultConnection")));
+
+builder.Services.AddHangfireServer();
+
 // =========================
 // DEPENDENCY INJECTION (DI)
 // =========================
@@ -101,6 +129,8 @@ builder.Services.AddSwaggerGen(options =>
 // Whenever ITaskService is needed → give TaskService
 builder.Services.AddScoped<ITaskService, TaskService>();
 builder.Services.AddScoped<IUserRepository, UserRepository>();
+
+builder.Services.AddSingleton<IProcessingStrategy, AsyncKeyLockProcessingStrategy>();
 
 // 👉 Scoped = new instance per request
 // (Best for web APIs)
@@ -163,6 +193,26 @@ Log.Logger = new LoggerConfiguration()
 
 builder.Host.UseSerilog();
 
+
+
+builder.Services.Configure<IpRateLimitOptions>(options =>
+{
+    options.GeneralRules = new List<RateLimitRule>
+    {
+        new RateLimitRule
+        {
+            Endpoint = "*",
+            Limit = 10,
+            Period = "1m"
+        }
+    };
+});
+
+builder.Services.AddStackExchangeRedisCache(options =>
+{
+    options.Configuration = "localhost:6379";
+});
+
 // =========================
 // BUILD APP
 // =========================
@@ -193,10 +243,13 @@ app.UseHttpsRedirection();
 
 // Step 1: Identify WHO the user is
 app.UseAuthentication();
-
 // Step 2: Check WHAT the user is allowed to do
 app.UseAuthorization();
 
+// ✅ RATE LIMIT HERE
+app.UseIpRateLimiting();
+
+app.UseHangfireDashboard(); // 👉 http://localhost:xxxx/hangfire
 
 // Maps controller routes (activates APIs)
 app.MapControllers();

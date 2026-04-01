@@ -7,6 +7,8 @@ using System.Text;
 using TaskManagerAPI.Helpers;
 using TaskManagerAPI.Interfaces;
 using TaskManagerAPI.Models;
+using Microsoft.Extensions.Caching.Memory;
+using Hangfire;
 
 namespace TaskManagerAPI.Controllers
 {
@@ -17,14 +19,17 @@ namespace TaskManagerAPI.Controllers
         private readonly IConfiguration _configuration;
         private readonly IUserRepository _repo;
         private readonly ILogger<AuthController> _logger;
+        private readonly IMemoryCache _cache;
 
-        public AuthController(IConfiguration configuration,IUserRepository repo, ILogger<AuthController> logger)
+        public AuthController(IConfiguration configuration,IUserRepository repo, ILogger<AuthController> logger, IMemoryCache cache)
         {
             _configuration = configuration;
             _repo = repo;
             _logger = logger;
+            _cache = cache;
         }
 
+        // REGISTER (ADMIN ONLY)
         [Authorize(Roles = "Admin")]
         [HttpPost("register")]
         public IActionResult Register(LoginModel model)
@@ -38,7 +43,7 @@ namespace TaskManagerAPI.Controllers
 
             _repo.AddUser(user);
 
-            return Ok("User registered");
+            return Ok("User created");
         }
 
 
@@ -73,6 +78,49 @@ namespace TaskManagerAPI.Controllers
                 token,
                 refreshToken
             });
+        }
+
+
+        // CURRENT USER
+        [Authorize]
+        [HttpGet("me")]
+        public IActionResult Me()
+        {
+            var username = User.Identity.Name;
+            var role = User.FindFirst(ClaimTypes.Role)?.Value;
+
+            return Ok(new { username, role });
+        }
+
+        // ADMIN ONLY
+        [Authorize(Roles = "Admin")]
+        [HttpGet("all-users")]
+        public async Task<IActionResult> GetAllUsers()
+        {
+            if(!_cache.TryGetValue("users",out List<User>  users))
+            {
+                users = await _repo.GetAllUsersAsync();
+
+                var cacheOptions = new MemoryCacheEntryOptions()
+                    .SetSlidingExpiration(TimeSpan.FromMinutes(5));
+
+                _cache.Set("users", users, cacheOptions);
+            }
+
+            return Ok(new
+            {
+                success = true,
+                data = users
+            });
+        }
+
+
+        [HttpGet("run-job")]
+        public IActionResult RunJob()
+        {
+            BackgroundJob.Enqueue(() => Console.WriteLine("🔥 Job triggered from API"));
+
+            return Ok("Job Started");
         }
 
         private string GenerateToken(User user)

@@ -34,5 +34,11 @@ namespace TaskManagerAPI.Services
         {
             return _context.Users.FirstOrDefault(u => u.RefreshToken == refreshToken);
         }
+        public async Task<List<User>> GetAllUsersAsync()
+        {
+            return await _context.Users
+                .AsNoTracking()   // ⚡ performance boost
+                .ToListAsync();
+        }
     }
 }
