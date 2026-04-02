@@ -1,0 +1,28 @@
+services:
+  api:
+    build: .
+    ports:
+      - "5000:7080" # .NET 8 default is 8080
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - JWT__Key=ThisIsMySuperSuperSuperSuperSuperSuperSuperSecretKey12345
+      # 1. Server=sql (matches the service name below)
+      # 2. Use User Id/Password (required for Docker SQL)
+      - ConnectionStrings__DefaultConnection=Server=sql;Database=TaskDb;User Id=sa;Password=YourStrong!Pass123;TrustServerCertificate=True;
+    depends_on:
+      sql:
+        condition: service_healthy
+
+  sql:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: sql_server
+    environment:
+      SA_PASSWORD: "YourStrong!Pass123"
+      ACCEPT_EULA: "Y"
+    ports:
+      - "1433:1433"
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P 'YourStrong!Pass123' -C -Q 'SELECT 1' || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5

@@ -31,24 +31,24 @@ using TaskManagerAPI.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// 👉 This creates the app builder which:
+// This creates the app builder which:
 // - Reads configuration (appsettings.json)
 // - Registers services (Dependency Injection)
 // - Prepares middleware pipeline
 
 
-// ✅ Required for rate limiting
+// Required for rate limiting
 builder.Services.AddOptions();
 builder.Services.AddMemoryCache();
 
-// ✅ Bind config
+// Bind config
 builder.Services.Configure<IpRateLimitOptions>(
     builder.Configuration.GetSection("IpRateLimiting"));
 
 builder.Services.Configure<IpRateLimitPolicies>(
     builder.Configuration.GetSection("IpRateLimitPolicies"));
 
-// ✅ REQUIRED SERVICES (THIS FIXES YOUR ERROR)
+// REQUIRED SERVICES 
 builder.Services.AddSingleton<IRateLimitCounterStore, MemoryCacheRateLimitCounterStore>();
 builder.Services.AddSingleton<IIpPolicyStore, MemoryCacheIpPolicyStore>();
 builder.Services.AddSingleton<IProcessingStrategy, AsyncKeyLockProcessingStrategy>();
@@ -213,6 +213,13 @@ builder.Services.AddStackExchangeRedisCache(options =>
     options.Configuration = "localhost:6379";
 });
 
+
+// Docker build the port
+builder.WebHost.ConfigureKestrel(serverOptions =>
+{
+    serverOptions.ListenAnyIP(7080);
+});
+
 // =========================
 // BUILD APP
 // =========================
@@ -220,6 +227,14 @@ builder.Services.AddStackExchangeRedisCache(options =>
 var app = builder.Build();
 
 // 👉 This compiles everything into a runnable app
+
+
+
+using (var scope = app.Services.CreateScope())
+{
+    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+    db.Database.Migrate();
+}
 
 
 // =========================
