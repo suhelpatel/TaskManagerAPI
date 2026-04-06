@@ -9,6 +9,9 @@ namespace TaskManagerAPI.Models
         public string PasswordHash { get; set; }
         public string Role { get; set; }
         public string RefreshToken { get; set; }
-        public DateTime RefreshTokenExpiryTime { get; set; }        
+        public DateTime RefreshTokenExpiryTime { get; set; }
+
+        public int FailedAttempts { get; set; }
+        public DateTime? LockoutEnd { get; set; }
     }
 }

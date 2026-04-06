@@ -56,13 +56,24 @@ namespace TaskManagerAPI.Controllers
             if (user == null)
                 return Unauthorized("User not found");
 
+            if (user.LockoutEnd != null && user.LockoutEnd > DateTime.Now)
+                return BadRequest("Account Locked. Try Later.");
+
             var hashedPassword = PasswordHelper.HashPassword(model.Password);
 
             if (user.PasswordHash != hashedPassword)
             {
+                user.FailedAttempts++;
+
+                if (user.FailedAttempts >= 5)
+                    user.LockoutEnd = DateTime.Now.AddMinutes(15);
+
+                _repo.UpdateUser(user);
                 _logger.LogWarning("Invalid login attempt");
                 return Unauthorized("Invalid password");
             }
+
+            user.FailedAttempts = 0;
 
             var token = GenerateToken(user);
 
